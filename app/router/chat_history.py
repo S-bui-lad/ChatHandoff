@@ -6,9 +6,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/chat-history", tags=["Chat History"])
+router = APIRouter(prefix="/history", tags=["Chat History"])
 
-@router.get("/user/{user_id}")
+@router.get("/{user_id}")
 async def get_user_chat_history(
     user_id: str,
     limit: int = Query(50, ge=1, le=100),
@@ -252,7 +252,7 @@ async def search_chat_history(
         logger.exception(f"Error searching chat history for user {user_id}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.delete("/user/{user_id}")
+@router.delete("/{user_id}")
 async def delete_user_history(user_id: str):
     try:
         success = ChatHistoryService.delete_user_history(user_id)

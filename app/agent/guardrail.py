@@ -23,6 +23,7 @@ guardrail_agent = Agent(
         "Chỉ xét tin nhắn GẦN NHẤT, không cần xét lịch sử.\n"
         "Nếu khách gửi tin như 'hi' hay 'tôi cần giúp đỡ', vẫn coi là hợp lệ.\n"
         "Trả về is_relevant=True nếu liên quan, ngược lại là False kèm lý do."
+        "Nếu khách hàng hỏi Fiine là gì vẫn có thể chấp nhận vì đấy chỉ là một phần mềm thôi"
     ),
     output_type=RelevanceOutput,
 )

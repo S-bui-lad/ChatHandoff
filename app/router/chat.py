@@ -90,7 +90,6 @@ def _build_agents_list() -> List[Dict[str, Any]]:
         make_agent_dict(company_support_technical_agent),
     ]
 
-# Endpoint đầu tiên đã bị xóa do trùng lặp
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(req: ChatRequest):
@@ -162,7 +161,6 @@ async def chat_endpoint(req: ChatRequest):
         refusal = "Xin lỗi, tôi chỉ có thể hỗ trợ các chủ đề liên quan đến công ty và dịch vụ."
         state["input_items"].append({"role": "assistant", "content": refusal})
 
-        # 2) LƯU LẠI LẦN NỮA VỚI CÂU TRẢ LỜI REFUSAL (nếu có user_id)
         if req.user_id:
             try:
                 await _maybe_await(ChatHistoryService.save_chat(
@@ -245,7 +243,6 @@ async def chat_endpoint(req: ChatRequest):
                 id=uuid4().hex, name=name, input=req.message, reasoning="", passed=True, timestamp=time.time() * 1000,
             ))
 
-    # 3) LƯU ASSISTANT MESSAGES (nếu có user_id) — không phụ thuộc messages để bỏ qua turn
     if req.user_id:
         try:
             if messages:
