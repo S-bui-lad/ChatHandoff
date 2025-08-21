@@ -125,22 +125,6 @@ async def chat_endpoint(req: ChatRequest):
     old_context = state["context"].model_dump().copy()
     guardrail_checks: List[GuardrailCheck] = []
 
-    # 1) LƯU USER MESSAGE NGAY LẬP TỨC (nếu có user_id)
-    if req.user_id:
-        try:
-            # Nếu save_chat là async → await; nếu là sync → giữ nguyên (xem helper bên dưới)
-            await _maybe_await(ChatHistoryService.save_chat(
-                conversation_id=conversation_id,
-                user_id=req.user_id,
-                question=req.message,
-                answer="",  # chưa có trả lời
-                agent=current_agent.name,
-                context=state["context"].model_dump(),
-                events=[{"type": "user_message"}]
-            ))
-        except Exception as e:
-            logger.exception(f"Không thể lưu user message: {e}")
-
     try:
         result = await Runner.run(current_agent, state["input_items"], context=state["context"])
     except InputGuardrailTripwireTriggered as e:
@@ -243,40 +227,27 @@ async def chat_endpoint(req: ChatRequest):
                 id=uuid4().hex, name=name, input=req.message, reasoning="", passed=True, timestamp=time.time() * 1000,
             ))
 
-    if req.user_id:
+    # Lưu đúng 1 lần với question và câu trả lời cuối cùng
+    main_reply = messages[-1].content if messages else ""
+    if req.user_id and main_reply:
         try:
-            if messages:
-                for message in messages:
-                    success = await _maybe_await(ChatHistoryService.save_chat(
-                        conversation_id=conversation_id,
-                        user_id=req.user_id,
-                        question=req.message,
-                        answer=message.content,
-                        agent=message.agent,
-                        context=state["context"].model_dump(),
-                        events=[event.model_dump() for event in events]
-                    ))
-                    if success is False:
-                        logger.error(f"Lỗi khi lưu tin nhắn từ agent: {message.agent}")
-                    else:
-                        logger.info(f"Đã lưu tin nhắn từ agent: {message.agent}")
-            else:
-                # Không có assistant message, nhưng vẫn ghi lại turn (ví dụ chỉ handoff/tool-call)
-                await _maybe_await(ChatHistoryService.save_chat(
-                    conversation_id=conversation_id,
-                    user_id=req.user_id,
-                    question=req.message,
-                    answer="",
-                    agent=current_agent.name,
-                    context=state["context"].model_dump(),
-                    events=[event.model_dump() for event in events]
-                ))
+            last_agent = messages[-1].agent if messages else current_agent.name
+            success = await _maybe_await(ChatHistoryService.save_chat(
+                conversation_id=conversation_id,
+                user_id=req.user_id,
+                question=req.message,
+                answer=main_reply,
+                agent=last_agent,
+                context=state["context"].model_dump(),
+                events=[event.model_dump() for event in events]
+            ))
+            if success is False:
+                logger.error("Lỗi khi lưu chat history")
         except Exception as e:
-            logger.exception(f"Không thể lưu assistant messages: {e}")
-    else:
+            logger.exception(f"Không thể lưu chat history: {e}")
+    elif not req.user_id:
         logger.warning("Không có user_id, bỏ qua lưu chat history")
 
-    main_reply = messages[-1].content if messages else ""
     metadata = {}
     if messages and any("support" in msg.content.lower() or "hỗ trợ" in msg.content.lower() for msg in messages):
         metadata["requires_support_form"] = True
